@@ -7,6 +7,9 @@ namespace HexagonPuzzle
     [System.Serializable]
     public class GridPoint
     {
+        //Multi Dimension Arrays are not serializable so this only works during runtime. For editor use see GridPoint.GetAt()
+        public static GridPoint[,] All;
+
         public Grid Grid;
         public Piece Piece;
 
@@ -21,6 +24,7 @@ namespace HexagonPuzzle
         [SerializeField]
         private Vector3 localPosition;
         public Vector3 LocalPosition => localPosition; //I did this because readonly fields are not serialized
+        public Vector3 WorldPosition => Grid.Instance.transform.TransformPoint(localPosition);
         [SerializeField]
         private Vector3 localStartPosition;
         public Vector3 LocalStartPosition => localStartPosition;

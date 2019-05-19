@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 
 namespace HexagonPuzzle.Editors
 {
@@ -25,10 +26,13 @@ namespace HexagonPuzzle.Editors
                 for (int i = 0; i < piece.GridPoint.Grid.PieceColors.Length; i++)
                 {
                     GUIStyle guiStyle = new GUIStyle();
-                    guiStyle.normal.textColor = piece.GridPoint.Grid.PieceColors[i];
                     guiStyle.normal.background = ColoredButtons[i];
                     if (GUILayout.Button("", guiStyle))
+                    {
                         piece.Color = piece.GridPoint.Grid.PieceColors[i];
+                        //Scene is automaticly saved because sometimes editor doesn't realize scene is modified, in which case you cannot manually save it.
+                        EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
+                    }
                 }
             }
         }

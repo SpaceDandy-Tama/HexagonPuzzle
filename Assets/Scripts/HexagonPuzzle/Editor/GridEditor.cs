@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 
 namespace HexagonPuzzle.Editors
 {
@@ -22,10 +23,18 @@ namespace HexagonPuzzle.Editors
             }
 
             if (!Application.isPlaying && GUILayout.Button("Generate Grid"))
+            {
                 grid.GenerateGrid();
+                //Scene is automaticly saved because sometimes editor doesn't realize scene is modified, in which case you cannot manually save it.
+                EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
+            }
 
             if (!Application.isPlaying && GUILayout.Button("Remove Grid"))
+            {
                 grid.RemoveGrid();
+                //Scene is automaticly saved because sometimes editor doesn't realize scene is modified, in which case you cannot manually save it.
+                EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
+            }
         }
 
         private void OnEnable()

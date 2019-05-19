@@ -25,6 +25,10 @@ namespace HexagonPuzzle
         public GridPoint[] GridPoints;
         [HideInInspector]
         public Piece[] Pieces;
+        [System.NonSerialized]
+        public GridJunction[,] GridJunctions;
+        [System.NonSerialized]
+        public Selection Selection;
 
         public void RemoveGrid()
         {
@@ -83,6 +87,18 @@ namespace HexagonPuzzle
 
         void Start()
         {
+            //Prepare two dimentional GridPoint Array for easy access
+            GridPoint.All = new GridPoint[Size.x, Size.y];
+            for (int i = 0; i < GridPoints.Length; i++)
+                GridPoint.All[GridPoints[i].X, GridPoints[i].Y] = GridPoints[i];
+
+            //Initialize GridJunctions
+            GridJunctions = new GridJunction[(Size.x - 1) * 2, (Size.y - 1)];
+            for (int x = 0; x < GridJunctions.GetLength(0); x++)
+                for (int y = 0; y < GridJunctions.GetLength(1); y++)
+                    GridJunctions[x, y] = new GridJunction(this, x, y);
+
+            //Deactivate All Pieces but preserve their GridPoints and invoke activation.
             for (int i = 0; i < Pieces.Length; i++)
             {
                 Pieces[i].Deactivate(true);
@@ -92,7 +108,10 @@ namespace HexagonPuzzle
 
         private void Update()
         {
-
+            if (Input.GetButtonDown("Fire1"))
+            {
+                Selection.Activate(Input.mousePosition);
+            }
         }
     }
 }
