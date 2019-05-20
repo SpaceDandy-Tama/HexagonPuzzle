@@ -6,10 +6,26 @@ namespace HexagonPuzzle
 {
     public class Piece : MonoBehaviour
     {
-        [System.NonSerialized]
+        public static Queue<Piece> Unused = new Queue<Piece>();
+
+        [HideInInspector]
         public int Index = -1;
 
-        public GridPoint GridPoint;
+        [SerializeField]
+        private GridPoint gridPoint;
+        public GridPoint GridPoint
+        #region Property
+        {
+            get => gridPoint;
+            set
+            {
+                LastGridPoint = gridPoint;
+                gridPoint = value;
+            }
+        }
+        #endregion
+        [System.NonSerialized]
+        private GridPoint LastGridPoint = null;
 
         public Vector3 GridPos => GridPoint.LocalPosition;
         public Vector3 GridPosWorld => GridPoint.Grid.transform.TransformPoint(GridPoint.LocalPosition);
@@ -36,31 +52,41 @@ namespace HexagonPuzzle
             }
         }
         #endregion
+        [SerializeField]
         private int colorIndex;
         public int ColorIndex => colorIndex;
 
-        private float TimeActivated = -1;
+        [System.NonSerialized]
+        public float TimeActivated = -1;
+        private float DeltaActivation => Time.time - TimeActivated;
+
+        [System.NonSerialized]
+        public bool Activated;
 
         public void ActivateInSeconds(float time)
         {
             Invoke("Activate", time);
         }
 
+        public static bool ActivatePooled(GridPoint gridPoint)
+        {
+            if (Unused.Count < 1)
+                return false;
+
+            return Unused.Dequeue().Activate(gridPoint, true);
+        }
         public bool Activate()
         {
             return Activate(null);
         }
         public bool Activate(GridPoint gridPoint, bool randomizeColor = false)
         {
-            if (GridPoint == null && (gridPoint == null || gridPoint.Piece != null))
-                return false;
-
             gameObject.SetActive(true);
             TimeActivated = Time.time;
             if (GridPoint == null)
             {
                 gridPoint.Piece = this;
-                GridPoint = gridPoint;
+                //GridPoint = gridPoint; //Propert takes care of this
             }
             transform.localPosition = GridPosStart;
 #if UNITY_EDITOR
@@ -80,11 +106,14 @@ namespace HexagonPuzzle
         {
             gameObject.SetActive(false);
             TimeActivated = -1f;
+            Activated = false;
 
             if (!preserveGridPoint)
             {
                 GridPoint.Piece = null;
                 GridPoint = null;
+                LastGridPoint = null;
+                Piece.Unused.Enqueue(this);
             }
         }
 
@@ -116,12 +145,33 @@ namespace HexagonPuzzle
         {
             if (GridPoint == null)
                 return;
-
-            float deltaActivation = Time.time - TimeActivated;
-            if (deltaActivation < 1.0f)
-                transform.localPosition = Vector3.Lerp(GridPosStart, GridPos, deltaActivation);
-            else
+            if (Activated)
+            {
                 transform.localPosition = GridPos;
+                return;
+            }
+
+            if (LastGridPoint == null)
+            {
+                if (DeltaActivation < 1.0f)
+                    transform.localPosition = Vector3.Lerp(GridPosStart, GridPos, DeltaActivation);
+                else
+                {
+                    transform.localPosition = GridPos;
+                    Activated = true;
+                }
+            }
+            else
+            {
+                float t = (1.0f / Grid.Instance.Size.y) * (LastGridPoint.Y - GridPoint.Y);
+                if (DeltaActivation < t)
+                    transform.localPosition = Vector3.Lerp(LastGridPoint.LocalPosition, GridPos, (1.0f / t) * DeltaActivation);
+                else
+                {
+                    transform.localPosition = GridPos;
+                    Activated = true;
+                }
+            }
         }
     }
 }

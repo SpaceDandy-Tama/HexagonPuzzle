@@ -57,6 +57,10 @@ namespace HexagonPuzzle
             Deactivate();
         }
 
+        public void Reactivate()
+        {
+            Activate(Camera.allCameras[0].WorldToScreenPoint(transform.position));
+        }
         //This Overload is added because mousePosition returns Vector3 while Touch.position returns Vector2
         public void Activate(Vector2 screenPoint)
         {
@@ -111,6 +115,54 @@ namespace HexagonPuzzle
         {
             gameObject.SetActive(false);
             ForegroundObject.SetActive(false);
+        }
+
+        private IEnumerator RotateEnumerator;
+        public void RotateCounterClockwise() => StartCoroutine(RotateEnumerator = Rotate(1f));
+        public void RotateClockwise() => StartCoroutine(RotateEnumerator = Rotate(-1f));
+
+        private IEnumerator Rotate(float dir)
+        {
+            //Set GameReady state to false so player cannot make any more moves until the current one is finished
+            Grid.Instance.GameReady = false;
+            bool explosionOccurred = false;
+
+            //Divide desired rotationTime by 3 because the rotation happens in 3 equal stages.
+            //Doing this will enable the use of Lerp method.
+            float rotationTime = 1.0f / 3;
+
+            for (int i = 0; i < 3; i++)
+            {
+                Quaternion rotation = Quaternion.Euler(0, 0, dir * 120 * (i+1));
+                Quaternion startRotation = Quaternion.Euler(0, 0, dir * 120f * i);
+                float startTime = Time.time;
+                while (Time.time < startTime + rotationTime)
+                {
+                    transform.rotation = Quaternion.Lerp(startRotation, rotation, (1f / rotationTime) * (Time.time - startTime));
+                    yield return null;
+                }
+                transform.rotation = rotation;
+
+                //Todo: Actually switch pieces here
+                if (dir > 0)
+                    SelectedGridJunction.SwitchPiecesClockwise();
+                else
+                    SelectedGridJunction.SwitchPiecesCounterClockwise();
+
+                if (Grid.Instance.CheckForExplosion(SelectedGridJunction))
+                {
+                    explosionOccurred = true;
+                    transform.rotation = Quaternion.identity;
+                    Deactivate();
+                    break;
+                }
+
+                yield return null;
+            }
+
+            //Set GameReady state back to true so player can make new moves.
+            if(!explosionOccurred)
+                Grid.Instance.GameReady = true;
         }
     }
 }

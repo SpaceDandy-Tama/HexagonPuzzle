@@ -1,4 +1,6 @@
-﻿using System.Collections;
+﻿#define DEBUG
+
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -29,6 +31,10 @@ namespace HexagonPuzzle
         public GridJunction[,] GridJunctions;
         [System.NonSerialized]
         public Selection Selection;
+        [System.NonSerialized]
+        private Vector3 LastClickPosition;
+        [System.NonSerialized]
+        public bool GameReady = false;
 
         public void RemoveGrid()
         {
@@ -80,6 +86,77 @@ namespace HexagonPuzzle
             }
         }
 
+        public bool CheckForExplosion(GridJunction gridJunction = null)
+        {
+            //Assign values for default loop
+            int xStart = 0;
+            int yStart = 0;
+            int xLength = GridJunctions.GetLength(0);
+            int yLength = GridJunctions.GetLength(1);
+
+            //Modify loop values to only check for the given junction and its neighbors to avoid unnecessary calculations
+            if (gridJunction != null)
+            {
+                xStart = gridJunction.X > 1 ? gridJunction.X - 2 : xStart;
+                yStart = gridJunction.Y > 1 ? gridJunction.Y - 2 : yStart;
+                xLength = gridJunction.X < xLength - 2 ? gridJunction.X + 3 : xLength;
+                yLength = gridJunction.Y < yLength - 2 ? gridJunction.Y + 3 : yLength;
+            }
+
+            for (int x = xStart; x < xLength; x++)
+            {
+                for (int y = yStart; y < yLength; y++)
+                {
+                    if (GridJunctions[x, y].GridPoints[0].Piece.ColorIndex == GridJunctions[x, y].GridPoints[1].Piece.ColorIndex
+                        && GridJunctions[x, y].GridPoints[0].Piece.ColorIndex == GridJunctions[x, y].GridPoints[2].Piece.ColorIndex)
+                    {
+                        GameReady = false;
+                        //Todo: Check for the same color on nearby GridJunctions
+                        #region DEBUG
+#if DEBUG
+                        Debug.Log("Explosion found at " + x + ":" + y);
+
+#endif
+                        #endregion
+                        int[] numRemoved = new int[GridPoint.All.GetLength(0)];
+                        int[] lastRemoved = new int[GridPoint.All.GetLength(0)];
+                        for (int i = 0; i < GridJunctions[x, y].GridPoints.Length; i++)
+                        {
+                            numRemoved[GridJunctions[x, y].GridPoints[i].X]++;
+                            lastRemoved[GridJunctions[x, y].GridPoints[i].X] = GridJunctions[x, y].GridPoints[i].Y;
+                            GridJunctions[x, y].GridPoints[i].Piece.Deactivate();
+                        }
+                        ShiftGridPoints(ref numRemoved, ref lastRemoved);
+
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private void ShiftGridPoints(ref int[] numRemoved, ref int[] lastRemoved)
+        {
+            
+            for (int x = 0; x < GridPoint.All.GetLength(0); x++)
+            {
+                if (numRemoved[x] < 1)
+                    continue;
+
+                for (int y = 1 + lastRemoved[x] - numRemoved[x]; y < GridPoint.All.GetLength(1); y++)
+                {
+                    if (y < GridPoint.All.GetLength(1) - numRemoved[x])
+                    {
+                        GridPoint.All[x, y].Piece = GridPoint.All[x, y + numRemoved[x]].Piece;
+                        GridPoint.All[x, y].Piece.Activated = false;
+                        GridPoint.All[x, y].Piece.TimeActivated = Time.time;
+                    }
+                    else
+                        Piece.ActivatePooled(GridPoint.All[x, y]);
+                }
+            }
+        }
+
         private void Awake()
         {
             Grid.Instance = this;
@@ -108,9 +185,58 @@ namespace HexagonPuzzle
 
         private void Update()
         {
-            if (Input.GetButtonDown("Fire1"))
+            //This prevents player interaction when we don't need it.
+            //Example: before all pieces falls into place at the start.
+            if (!GameReady)
             {
-                Selection.Activate(Input.mousePosition);
+                bool allActivated = true;
+                for (int i = 0; i < Pieces.Length; i++)
+                {
+                    if (!Pieces[i].Activated)
+                    {
+                        allActivated = false;
+                        break;
+                    }
+                }
+                if (allActivated)
+                    GameReady = true;
+                return;
+            }
+
+#if UNITY_ANDROID || UNITY_IOS
+#endif
+            if (Input.GetMouseButtonDown(0))
+            {
+                if (Selection.SelectedGridJunction == null)
+                    Selection.Activate(Input.mousePosition);
+                LastClickPosition = Input.mousePosition;
+            }
+            else if (Input.GetMouseButtonUp(0))
+            {
+                if(Mathf.Abs(Input.mousePosition.x - LastClickPosition.x) > 100.0f)
+                {
+#region DEBUG
+#if DEBUG
+                    if (Selection.gameObject.activeInHierarchy)
+                    {
+                        Debug.Log(Input.mousePosition.x + (Input.mousePosition.x > LastClickPosition.x ? " > " : " < ") + LastClickPosition.x);
+                        Debug.Log(Input.mousePosition.x > LastClickPosition.x ? "Will Rotate Clockwise" : "Will Rotate Counter Clockwise");
+                    }
+#endif
+#endregion
+                    if (Selection.gameObject.activeInHierarchy)
+                    {
+                        if (Input.mousePosition.x > LastClickPosition.x)
+                            Selection.RotateClockwise();
+                        else
+                            Selection.RotateCounterClockwise();
+                    }
+                }
+                else
+                {
+                    Selection.Activate(Input.mousePosition);
+                    LastClickPosition = Input.mousePosition;
+                }
             }
         }
     }

@@ -11,7 +11,20 @@ namespace HexagonPuzzle
         public static GridPoint[,] All;
 
         public Grid Grid;
-        public Piece Piece;
+        [SerializeField]
+        private Piece piece;
+        public Piece Piece
+        #region Property
+        {
+            get => piece;
+            set
+            {
+                if(value != null)
+                    value.GridPoint = this;
+                piece = value;
+            }
+        }
+        #endregion
 
         [SerializeField]
         private int x;
@@ -38,11 +51,15 @@ namespace HexagonPuzzle
             this.y = y;
 
             if (IsOdd)
+            {
                 localPosition = new Vector3(x * Grid.PieceScale.x * 0.725f, y * Grid.PieceScale.y);
+                localStartPosition = new Vector3(x * Grid.PieceScale.x * 0.725f, Grid.Size.y + LocalPosition.y);
+            }
             else
+            {
                 localPosition = new Vector3(x * Grid.PieceScale.x * 0.725f, (y * Grid.PieceScale.y) - (Grid.PieceScale.y / 2));
-
-            localStartPosition = new Vector3(x * Grid.PieceScale.x * 0.725f, Grid.Size.y + LocalPosition.y); //BUG at y
+                localStartPosition = new Vector3(x * Grid.PieceScale.x * 0.725f, Grid.Size.y + LocalPosition.y - (Grid.PieceScale.y / 2));
+            }
         }
     }
 }
