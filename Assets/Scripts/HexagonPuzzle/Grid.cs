@@ -16,10 +16,18 @@ namespace HexagonPuzzle
         public Vector3 PieceScale = new Vector3(1, 1, 1); //Todo: Make this automatic based on Grid Size
         public int BombAppearanceScore = 1000;
         public float PieceActivationInterval = 0.016666f;
+        public bool StartByCheckingExplosions = false;
 
         [Header("Sprite Settings")]
         public Sprite PieceSprite;
         public Sprite BombSprite;
+
+        [Header("Audio Settings")]
+        public AudioClip AC_PieceSelect;
+        public AudioClip AC_PieceClockwise;
+        public AudioClip AC_PieceCounterClockwise;
+        public AudioClip AC_PieceExplosion;
+        public AudioClip AC_BombExplosion;
 
         public int PieceCount => PieceColors.Length;
 
@@ -35,6 +43,12 @@ namespace HexagonPuzzle
         private Vector3 LastClickPosition;
         [System.NonSerialized]
         public bool GameReady = false;
+        [System.NonSerialized]
+        public bool ExplosionOccurred = false;
+        [System.NonSerialized]
+        public int BombCounter;
+        [System.NonSerialized]
+        public AudioSource AudioSource;
 
         public void RemoveGrid()
         {
@@ -53,16 +67,16 @@ namespace HexagonPuzzle
         public void GenerateGrid()
         {
             //Clean up old generated grid if it exists
+            RemoveGrid();
 #if UNITY_EDITOR
             if (!Application.isPlaying)
             {
-                RemoveGrid();
                 Grid.Instance = this;
             }
 #endif
 
             //Set up Grid origin based on Grid Size
-            transform.position = new Vector3((-((Size.x - 1) * PieceScale.x * 0.725f) / 2), (-((Size.y) * PieceScale.y) / 2) + 0.75f);
+            transform.position = new Vector3((-((Size.x - 1) * PieceScale.x * 0.725f) / 2), (-((Size.y) * PieceScale.y) / 2));
 
             //Initialize Piece array;
             Pieces = new Piece[Size.x * Size.y];
@@ -103,6 +117,7 @@ namespace HexagonPuzzle
                 yLength = gridJunction.Y < yLength - 2 ? gridJunction.Y + 3 : yLength;
             }
 
+            //Todo: should be y first then x. Otherwise the repeating explosions look weird.
             for (int x = xStart; x < xLength; x++)
             {
                 for (int y = yStart; y < yLength; y++)
@@ -128,6 +143,15 @@ namespace HexagonPuzzle
                         }
                         ShiftGridPoints(ref numRemoved, ref lastRemoved);
 
+                        //Add the score
+                        int totalRemoved = 0;
+                        for (int i = 0; i < numRemoved.Length; i++)
+                            totalRemoved += numRemoved[i];
+                        Menu.Instance.Score += totalRemoved * 5;
+
+                        //Play Audio
+                        AudioSource.PlayOneShot(AC_PieceExplosion);
+
                         return true;
                     }
                 }
@@ -148,11 +172,21 @@ namespace HexagonPuzzle
                     if (y < GridPoint.All.GetLength(1) - numRemoved[x])
                     {
                         GridPoint.All[x, y].Piece = GridPoint.All[x, y + numRemoved[x]].Piece;
+                        //this is set to false until piece falls to its new gridpoint. It will because true once it does automaticly
                         GridPoint.All[x, y].Piece.Activated = false;
+                        //this is set to current time so that fall to place can be lerped.
                         GridPoint.All[x, y].Piece.TimeActivated = Time.time;
                     }
                     else
-                        Piece.ActivatePooled(GridPoint.All[x, y]);
+                    {
+                        if (BombCounter < Menu.Instance.Score / BombAppearanceScore)
+                        {
+                            Bomb.CreateNew(GridPoint.All[x, y]);
+                            BombCounter++;
+                        }
+                        else
+                            Piece.ActivatePooled(GridPoint.All[x, y]);
+                    }
                 }
             }
         }
@@ -160,6 +194,10 @@ namespace HexagonPuzzle
         private void Awake()
         {
             Grid.Instance = this;
+            AudioSource = gameObject.GetComponent<AudioSource>();
+
+            if (Bomb.Exploded)
+                AudioSource.PlayOneShot(AC_BombExplosion);
         }
 
         void Start()
@@ -181,6 +219,9 @@ namespace HexagonPuzzle
                 Pieces[i].Deactivate(true);
                 Pieces[i].ActivateInSeconds(PieceActivationInterval * (i+1));
             }
+
+            if (StartByCheckingExplosions)
+                ExplosionOccurred = true;
         }
 
         private void Update()
@@ -192,50 +233,73 @@ namespace HexagonPuzzle
                 bool allActivated = true;
                 for (int i = 0; i < Pieces.Length; i++)
                 {
-                    if (!Pieces[i].Activated)
+                    if (Pieces[i].gameObject.activeInHierarchy && !Pieces[i].Activated)
+                    {
+                        allActivated = false;
+                        break;
+                    }
+                }
+                foreach (Bomb bomb in Bomb.All)
+                {
+                    if (bomb == null)
+                        continue;
+
+                    if (bomb.gameObject.activeInHierarchy && !bomb.Activated)
                     {
                         allActivated = false;
                         break;
                     }
                 }
                 if (allActivated)
-                    GameReady = true;
+                {
+                    //If there was an explosion earlier, do not enable the game immedietly, check for repeating explosions due to new pieces being added in and shifts.
+                    if (ExplosionOccurred)
+                        ExplosionOccurred = CheckForExplosion();
+                    else
+                        GameReady = true;
+                }
                 return;
             }
 
+            Bomb.CheckFuses();
+
 #if UNITY_ANDROID || UNITY_IOS
 #endif
-            if (Input.GetMouseButtonDown(0))
+            //Ignore Input if mouse is hovering on top of the header.
+            if (Input.mousePosition.y < Screen.height - 100)
             {
-                if (Selection.SelectedGridJunction == null)
-                    Selection.Activate(Input.mousePosition);
-                LastClickPosition = Input.mousePosition;
-            }
-            else if (Input.GetMouseButtonUp(0))
-            {
-                if(Mathf.Abs(Input.mousePosition.x - LastClickPosition.x) > 100.0f)
+                if (Input.GetMouseButtonDown(0))
                 {
-#region DEBUG
-#if DEBUG
-                    if (Selection.gameObject.activeInHierarchy)
-                    {
-                        Debug.Log(Input.mousePosition.x + (Input.mousePosition.x > LastClickPosition.x ? " > " : " < ") + LastClickPosition.x);
-                        Debug.Log(Input.mousePosition.x > LastClickPosition.x ? "Will Rotate Clockwise" : "Will Rotate Counter Clockwise");
-                    }
-#endif
-#endregion
-                    if (Selection.gameObject.activeInHierarchy)
-                    {
-                        if (Input.mousePosition.x > LastClickPosition.x)
-                            Selection.RotateClockwise();
-                        else
-                            Selection.RotateCounterClockwise();
-                    }
-                }
-                else
-                {
-                    Selection.Activate(Input.mousePosition);
+                    if (Selection.SelectedGridJunction == null)
+                        Selection.Activate(Input.mousePosition);
                     LastClickPosition = Input.mousePosition;
+                }
+                else if (Input.GetMouseButtonUp(0))
+                {
+                    if (Mathf.Abs(Input.mousePosition.x - LastClickPosition.x) > 100.0f)
+                    {
+                        #region DEBUG
+#if DEBUG
+                        if (Selection.gameObject.activeInHierarchy)
+                        {
+                            Debug.Log(Input.mousePosition.x + (Input.mousePosition.x > LastClickPosition.x ? " > " : " < ") + LastClickPosition.x);
+                            Debug.Log(Input.mousePosition.x > LastClickPosition.x ? "Will Rotate Clockwise" : "Will Rotate Counter Clockwise");
+                        }
+#endif
+                        #endregion
+                        if (Selection.gameObject.activeInHierarchy)
+                        {
+                            if (Input.mousePosition.x > LastClickPosition.x)
+                                Selection.RotateClockwise();
+                            else
+                                Selection.RotateCounterClockwise();
+                        }
+                    }
+                    else
+                    {
+                        Selection.Activate(Input.mousePosition);
+                        LastClickPosition = Input.mousePosition;
+                    }
                 }
             }
         }

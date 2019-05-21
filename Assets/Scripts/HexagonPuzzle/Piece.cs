@@ -113,7 +113,16 @@ namespace HexagonPuzzle
                 GridPoint.Piece = null;
                 GridPoint = null;
                 LastGridPoint = null;
-                Piece.Unused.Enqueue(this);
+
+                if (this is Bomb)
+                {
+                    Bomb bomb = (Bomb)this;
+                    if(Bomb.All.Contains(bomb))
+                        Bomb.All.Remove(bomb);
+                    Destroy(gameObject);
+                }
+                else
+                    Piece.Unused.Enqueue(this);
             }
         }
 

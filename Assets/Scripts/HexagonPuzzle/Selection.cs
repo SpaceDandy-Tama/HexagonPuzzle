@@ -39,6 +39,10 @@ namespace HexagonPuzzle
         }
         #endregion
 
+        private SpriteRenderer Bomb0SpriteRenderer;
+        private SpriteRenderer Bomb1SpriteRenderer;
+        private SpriteRenderer Bomb2SpriteRenderer;
+
         [System.NonSerialized]
         public GridJunction SelectedGridJunction;
 
@@ -49,6 +53,10 @@ namespace HexagonPuzzle
             Piece0SpriteRenderer = Piece0.GetComponent<SpriteRenderer>();
             Piece1SpriteRenderer = Piece1.GetComponent<SpriteRenderer>();
             Piece2SpriteRenderer = Piece2.GetComponent<SpriteRenderer>();
+
+            Bomb0SpriteRenderer = Piece0.transform.GetChild(0).gameObject.GetComponent<SpriteRenderer>();
+            Bomb1SpriteRenderer = Piece1.transform.GetChild(0).gameObject.GetComponent<SpriteRenderer>();
+            Bomb2SpriteRenderer = Piece2.transform.GetChild(0).gameObject.GetComponent<SpriteRenderer>();
 
             ForegroundObject.transform.parent = null; //We don't want the circle to get squished
             ForegroundObject.transform.localScale = Vector3.one * Grid.Instance.PieceScale.x;
@@ -70,6 +78,9 @@ namespace HexagonPuzzle
         {
             if (Grid.Instance == null)
                 return;
+
+            //Play audio
+            Grid.Instance.AudioSource.PlayOneShot(Grid.Instance.AC_PieceSelect);
 
             Vector3 worldPoint = Camera.allCameras[0].ScreenToWorldPoint(screenPoint);
 
@@ -96,6 +107,10 @@ namespace HexagonPuzzle
             gameObject.SetActive(true);
             ForegroundObject.SetActive(true);
 
+            //Disable bombs and enable hexagons
+            Bomb0SpriteRenderer.enabled = Bomb1SpriteRenderer.enabled = Bomb2SpriteRenderer.enabled = false;
+            Piece0SpriteRenderer.enabled = Piece1SpriteRenderer.enabled = Piece2SpriteRenderer.enabled = true;
+
             //Set position to GridJunction
             ForegroundObject.transform.position = transform.position = SelectedGridJunction.WorldPosition;
 
@@ -109,6 +124,26 @@ namespace HexagonPuzzle
             Piece0Color = SelectedGridJunction.GridPoints[0].Piece.Color;
             Piece1Color = SelectedGridJunction.GridPoints[1].Piece.Color;
             Piece2Color = SelectedGridJunction.GridPoints[2].Piece.Color;
+
+            //Check if any of the pieces are actually bombs
+            if(SelectedGridJunction.GridPoints[0].Piece is Bomb)
+            {
+                Piece0SpriteRenderer.enabled = false;
+                Bomb0SpriteRenderer.enabled = true;
+                Bomb0SpriteRenderer.color = Piece0SpriteRenderer.color;
+            }
+            if (SelectedGridJunction.GridPoints[1].Piece is Bomb)
+            {
+                Piece1SpriteRenderer.enabled = false;
+                Bomb1SpriteRenderer.enabled = true;
+                Bomb1SpriteRenderer.color = Piece1SpriteRenderer.color;
+            }
+            if (SelectedGridJunction.GridPoints[2].Piece is Bomb)
+            {
+                Piece2SpriteRenderer.enabled = false;
+                Bomb2SpriteRenderer.enabled = true;
+                Bomb2SpriteRenderer.color = Piece2SpriteRenderer.color;
+            }
         }
 
         public void Deactivate()
@@ -123,9 +158,14 @@ namespace HexagonPuzzle
 
         private IEnumerator Rotate(float dir)
         {
+            //Play Audio
+            if(dir < 0)
+                Grid.Instance.AudioSource.PlayOneShot(Grid.Instance.AC_PieceClockwise);
+            else
+                Grid.Instance.AudioSource.PlayOneShot(Grid.Instance.AC_PieceCounterClockwise);
+
             //Set GameReady state to false so player cannot make any more moves until the current one is finished
             Grid.Instance.GameReady = false;
-            bool explosionOccurred = false;
 
             //Divide desired rotationTime by 3 because the rotation happens in 3 equal stages.
             //Doing this will enable the use of Lerp method.
@@ -149,9 +189,8 @@ namespace HexagonPuzzle
                 else
                     SelectedGridJunction.SwitchPiecesCounterClockwise();
 
-                if (Grid.Instance.CheckForExplosion(SelectedGridJunction))
+                if (Grid.Instance.ExplosionOccurred = Grid.Instance.CheckForExplosion(SelectedGridJunction))
                 {
-                    explosionOccurred = true;
                     transform.rotation = Quaternion.identity;
                     Deactivate();
                     break;
@@ -160,8 +199,10 @@ namespace HexagonPuzzle
                 yield return null;
             }
 
-            //Set GameReady state back to true so player can make new moves.
-            if(!explosionOccurred)
+            //Increase NumMoves if explosion occurred otherwise Set GameReady state back to true so player can make new moves.
+            if(Grid.Instance.ExplosionOccurred)
+                Menu.Instance.NumMoves++;
+            else
                 Grid.Instance.GameReady = true;
         }
     }
