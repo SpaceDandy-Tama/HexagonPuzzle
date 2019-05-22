@@ -37,6 +37,15 @@ namespace HexagonPuzzle
         private void Awake() => Menu.Instance = this;
 
         //Todo: Implement reseting static variables just in case
-        public void Restart() => SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex, LoadSceneMode.Single);
+        public void Restart()
+        {
+            foreach(Bomb bomb in Bomb.All)
+                Destroy(bomb.gameObject);
+            Bomb.All.Clear();
+
+            Piece.Unused.Clear();
+
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex, LoadSceneMode.Single);
+        }
     }
 }
