@@ -164,6 +164,23 @@ namespace HexagonPuzzle
             else
                 Grid.Instance.AudioSource.PlayOneShot(Grid.Instance.AC_PieceCounterClockwise);
 
+            //Hide TextMesh if bomb. These will get reactivated after the move automaticly
+            if (SelectedGridJunction.GridPoints[0].Piece is Bomb)
+            {
+                Bomb bomb = (Bomb)SelectedGridJunction.GridPoints[0].Piece;
+                bomb.TextMesh.gameObject.GetComponent<MeshRenderer>().enabled = false;
+            }
+            if (SelectedGridJunction.GridPoints[1].Piece is Bomb)
+            {
+                Bomb bomb = (Bomb)SelectedGridJunction.GridPoints[1].Piece;
+                bomb.TextMesh.gameObject.GetComponent<MeshRenderer>().enabled = false;
+            }
+            if (SelectedGridJunction.GridPoints[2].Piece is Bomb)
+            {
+                Bomb bomb = (Bomb)SelectedGridJunction.GridPoints[2].Piece;
+                bomb.TextMesh.gameObject.GetComponent<MeshRenderer>().enabled = false;
+            }
+
             //Set GameReady state to false so player cannot make any more moves until the current one is finished
             Grid.Instance.GameReady = false;
 
@@ -200,10 +217,29 @@ namespace HexagonPuzzle
             }
 
             //Increase NumMoves if explosion occurred otherwise Set GameReady state back to true so player can make new moves.
-            if(Grid.Instance.ExplosionOccurred)
+            if (Grid.Instance.ExplosionOccurred)
                 Menu.Instance.NumMoves++;
             else
+            {
                 Grid.Instance.GameReady = true;
+
+                //enable TextMeshRenderers back
+                if (SelectedGridJunction.GridPoints[0].Piece is Bomb)
+                {
+                    Bomb bomb = (Bomb)SelectedGridJunction.GridPoints[0].Piece;
+                    bomb.TextMesh.gameObject.GetComponent<MeshRenderer>().enabled = true;
+                }
+                if (SelectedGridJunction.GridPoints[1].Piece is Bomb)
+                {
+                    Bomb bomb = (Bomb)SelectedGridJunction.GridPoints[1].Piece;
+                    bomb.TextMesh.gameObject.GetComponent<MeshRenderer>().enabled = true;
+                }
+                if (SelectedGridJunction.GridPoints[2].Piece is Bomb)
+                {
+                    Bomb bomb = (Bomb)SelectedGridJunction.GridPoints[2].Piece;
+                    bomb.TextMesh.gameObject.GetComponent<MeshRenderer>().enabled = true;
+                }
+            }
         }
     }
 }

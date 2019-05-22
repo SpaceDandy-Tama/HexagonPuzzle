@@ -263,8 +263,6 @@ namespace HexagonPuzzle
 
             Bomb.CheckFuses();
 
-#if UNITY_ANDROID || UNITY_IOS
-#endif
             //Ignore Input if mouse is hovering on top of the header.
             if (Input.mousePosition.y < Screen.height - 100)
             {
@@ -276,23 +274,31 @@ namespace HexagonPuzzle
                 }
                 else if (Input.GetMouseButtonUp(0))
                 {
-                    if (Mathf.Abs(Input.mousePosition.x - LastClickPosition.x) > 100.0f)
+                    Vector3 delta = Input.mousePosition - LastClickPosition;
+                    if (delta.magnitude > 100.0f)
                     {
-                        #region DEBUG
-#if DEBUG
+            #region DEBUG
+#if UNITY_EDITOR && DEBUG
                         if (Selection.gameObject.activeInHierarchy)
-                        {
-                            Debug.Log(Input.mousePosition.x + (Input.mousePosition.x > LastClickPosition.x ? " > " : " < ") + LastClickPosition.x);
-                            Debug.Log(Input.mousePosition.x > LastClickPosition.x ? "Will Rotate Clockwise" : "Will Rotate Counter Clockwise");
-                        }
+                            Debug.Log(Input.mousePosition.x + " | " + LastClickPosition.x);
 #endif
-                        #endregion
+            #endregion
                         if (Selection.gameObject.activeInHierarchy)
                         {
-                            if (Input.mousePosition.x > LastClickPosition.x)
-                                Selection.RotateClockwise();
+                            if (Mathf.Abs(delta.x) > Mathf.Abs(delta.y))
+                            {
+                                if (Input.mousePosition.x > LastClickPosition.x)
+                                    Selection.RotateClockwise();
+                                else
+                                    Selection.RotateCounterClockwise();
+                            }
                             else
-                                Selection.RotateCounterClockwise();
+                            {
+                                if (Input.mousePosition.y > LastClickPosition.y)
+                                    Selection.RotateClockwise();
+                                else
+                                    Selection.RotateCounterClockwise();
+                            }
                         }
                     }
                     else

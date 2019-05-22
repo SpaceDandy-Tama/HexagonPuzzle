@@ -41,7 +41,8 @@ namespace HexagonPuzzle
         {
             Bomb bomb = Piece.CreateNewSprite().AddComponent<Bomb>();
             bomb.gameObject.name = "bomb";
-            bomb.transform.localScale = Vector3.one;
+            //Both x and y are assigned PieceScale.X because the bomb is round, we don't want to squish it by assigning different values
+            bomb.transform.localScale = new Vector3(Grid.Instance.PieceScale.x, Grid.Instance.PieceScale.x);
             bomb.gameObject.SetActive(true);
             Bomb.All.Add(bomb);
 
@@ -85,7 +86,11 @@ namespace HexagonPuzzle
             }
         }
 
-        private void Tick() => TextMesh.text = RemainingMoves.ToString();
+        private void Tick()
+        {
+            TextMesh.gameObject.GetComponent<MeshRenderer>().enabled = true;
+            TextMesh.text = RemainingMoves.ToString();
+        }
 
         public static void CheckFuses()
         {
