@@ -108,6 +108,8 @@ namespace HexagonPuzzle
             int xLength = GridJunctions.GetLength(0);
             int yLength = GridJunctions.GetLength(1);
 
+            //This was disabled because it created a bug where sometimes explosions wasn't detected correctly
+            /*
             //Modify loop values to only check for the given junction and its neighbors to avoid unnecessary calculations
             if (gridJunction != null)
             {
@@ -116,21 +118,21 @@ namespace HexagonPuzzle
                 xLength = gridJunction.X < xLength - 2 ? gridJunction.X + 3 : xLength;
                 yLength = gridJunction.Y < yLength - 2 ? gridJunction.Y + 3 : yLength;
             }
+            */
 
-            //Todo: should be y first then x. Otherwise the repeating explosions look weird.
-            for (int x = xStart; x < xLength; x++)
+            for (int y = yStart; y < yLength; y++)
             {
-                for (int y = yStart; y < yLength; y++)
-                {
+                for (int x = xStart; x < xLength; x++)
+                    {
                     if (GridJunctions[x, y].GridPoints[0].Piece.ColorIndex == GridJunctions[x, y].GridPoints[1].Piece.ColorIndex
                         && GridJunctions[x, y].GridPoints[0].Piece.ColorIndex == GridJunctions[x, y].GridPoints[2].Piece.ColorIndex)
                     {
                         GameReady = false;
-                        //Todo: Check for the same color on nearby GridJunctions
+                        int colorIndex = GridJunctions[x, y].GridPoints[0].Piece.ColorIndex;
+
                         #region DEBUG
 #if DEBUG
                         Debug.Log("Explosion found at " + x + ":" + y);
-
 #endif
                         #endregion
                         int[] numRemoved = new int[GridPoint.All.GetLength(0)];
@@ -141,6 +143,51 @@ namespace HexagonPuzzle
                             lastRemoved[GridJunctions[x, y].GridPoints[i].X] = GridJunctions[x, y].GridPoints[i].Y;
                             GridJunctions[x, y].GridPoints[i].Piece.Deactivate();
                         }
+
+                        //Also need to check surrounding pieces to detect more than 3
+                        GridPoint neighbor;
+                        GridPoint gridPointA = GridJunctions[x, y].GridPoints[0];
+                        GridPoint gridPointB = GridJunctions[x, y].GridPoints[1];
+                        GridPoint gridPointC = GridJunctions[x, y].GridPoints[2];
+
+                        if (GridPoint.GetCommonNeighbor(gridPointA, gridPointB, gridPointC, out neighbor))
+                        {
+                            if (neighbor != null && neighbor.Piece != null && neighbor.Piece.Activated && neighbor.Piece.ColorIndex == colorIndex)
+                            {
+                                numRemoved[neighbor.X]++;
+                                lastRemoved[neighbor.X] = neighbor.Y > lastRemoved[neighbor.X] ? neighbor.Y : lastRemoved[neighbor.X];
+                                neighbor.Piece.Deactivate();
+                            }
+                        }
+
+                        gridPointA = GridJunctions[x, y].GridPoints[1];
+                        gridPointB = GridJunctions[x, y].GridPoints[2];
+                        gridPointC = GridJunctions[x, y].GridPoints[0];
+
+                        if (GridPoint.GetCommonNeighbor(gridPointA, gridPointB, gridPointC, out neighbor))
+                        {
+                            if (neighbor != null && neighbor.Piece != null && neighbor.Piece.Activated && neighbor.Piece.ColorIndex == colorIndex)
+                            {
+                                numRemoved[neighbor.X]++;
+                                lastRemoved[neighbor.X] = neighbor.Y > lastRemoved[neighbor.X] ? neighbor.Y : lastRemoved[neighbor.X];
+                                neighbor.Piece.Deactivate();
+                            }
+                        }
+
+                        gridPointA = GridJunctions[x, y].GridPoints[2];
+                        gridPointB = GridJunctions[x, y].GridPoints[0];
+                        gridPointC = GridJunctions[x, y].GridPoints[1];
+
+                        if (GridPoint.GetCommonNeighbor(gridPointA, gridPointB, gridPointC, out neighbor))
+                        {
+                            if (neighbor != null && neighbor.Piece != null && neighbor.Piece.Activated && neighbor.Piece.ColorIndex == colorIndex)
+                            {
+                                numRemoved[neighbor.X]++;
+                                lastRemoved[neighbor.X] = neighbor.Y > lastRemoved[neighbor.X] ? neighbor.Y : lastRemoved[neighbor.X];
+                                neighbor.Piece.Deactivate();
+                            }
+                        }
+
                         ShiftGridPoints(ref numRemoved, ref lastRemoved);
 
                         //Add the score

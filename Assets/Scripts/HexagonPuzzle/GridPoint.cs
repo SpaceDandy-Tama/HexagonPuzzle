@@ -61,5 +61,89 @@ namespace HexagonPuzzle
                 localStartPosition = new Vector3(x * Grid.PieceScale.x * 0.725f, Grid.Size.y + LocalPosition.y - (Grid.PieceScale.y / 2));
             }
         }
+
+        public static bool GetCommonNeighbor(GridPoint a, GridPoint b, GridPoint excluding, out GridPoint neighbor)
+        {
+            neighbor = null;
+
+            //If a and b isn't neighbors this is futile!
+            if ((Mathf.Abs(a.X - b.X) != 1 && Mathf.Abs(a.Y - b.Y) > 1) || (Mathf.Abs(a.Y - b.Y) != 1 && Mathf.Abs(a.X - b.X) > 1))
+                return false;
+
+            GridPoint temp = null;
+            if (a.Y == b.Y)
+            {
+                if (a.IsOdd)
+                {
+                    
+                    if (a.Y > 0)
+                    {
+                        temp = All[a.X, a.Y - 1];
+                        if (temp != excluding)
+                        {
+                            neighbor = temp;
+                            return true;
+                        }
+                    }
+
+                    if (b.Y < Grid.Instance.Size.y - 1)
+                    {
+                        temp = All[b.X, b.Y + 1];
+                        if (temp != excluding)
+                        {
+                            neighbor = temp;
+                            return true;
+                        }
+                    }
+                }
+                else
+                {
+                    if (a.Y < Grid.Instance.Size.y - 1)
+                    {
+                        temp = All[a.X, a.Y + 1];
+                        if (temp != excluding)
+                        {
+                            neighbor = temp;
+                            return true;
+                        }
+                    }
+
+                    if (b.Y > 0)
+                    {
+                        temp = All[b.X, b.Y - 1];
+                        if (temp != excluding)
+                        {
+                            neighbor = temp;
+                            return true;
+                        }
+                    }
+                }
+            }
+            else if(a.X == b.X)
+            {
+                int lowestY = a.Y < b.Y ? a.Y : b.Y;
+                if (a.x > 0)
+                {
+                    temp = All[a.X - 1, lowestY];
+                    if (temp != excluding)
+                    {
+                        neighbor = temp;
+                        return true;
+                    }
+                }
+
+                if (b.X < Grid.Instance.Size.x - 1)
+                {
+                    temp = All[b.X + 1, lowestY];
+                    if (temp != excluding)
+                    {
+                        neighbor = temp;
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
     }
 }
